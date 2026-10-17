@@ -1,0 +1,11 @@
+/* depth.css — profundidade opcional do .term. Sem JS ou sem hover: página intacta. Só usa var(--clock). */
+#demo { perspective: 1400px; }
+.depth-on .term { transform-style: preserve-3d; will-change: transform; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.depth-on .clock-layer { transform: translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 6px), 26px); will-change: transform; }
+.depth-on .widget-strip { transform: translate3d(calc(var(--px, 0) * -12px), calc(var(--sy, 0) * 10px), 12px); will-change: transform; }
+@media (hover: none), (pointer: coarse) {
+  #demo { perspective: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .depth-on .term, .depth-on .clock-layer, .depth-on .widget-strip { transform: none; will-change: auto; }
+}
