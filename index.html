@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-dev-clock — relógio de terminal para Windows</title>
+<meta name="description" content="Relógio de terminal para Windows em Rust: timer, cronômetro, contagem regressiva e painéis de status. Executável único, sem instalador.">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="depth.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#topo">my-dev-clock <small>· relógio de terminal</small></a>
+    <nav aria-label="Seções">
+      <a href="#demo">Demonstração</a>
+      <a href="#modos">Modos</a>
+      <a href="#widgets">Painéis</a>
+      <a href="#receitas">Receitas</a>
+      <a href="#config">Configuração</a>
+      <a href="#instalar">Instalação</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="topo">
+
+  <div class="hero">
+    <h1>O terminal virou <strong>painel de status</strong>.</h1>
+    <p class="lede">
+      <code>my-dev-clock</code> é um relógio de terminal para Windows com timer,
+      cronômetro, contagem regressiva e fileira de painéis. Escrito em Rust, nativo no Windows:
+      não depende de <code>sh</code>, de script bash nem de utilitário do Linux.
+      É um executável único, sem instalador e sem nada mais para instalar.
+    </p>
+    <div class="cta-row">
+      <a class="btn ghost" href="#demo">Ver funcionando</a>
+      <a class="btn solid" href="https://github.com/HyperTechDevelopment/My-dev-clock/releases/latest" target="_blank" rel="noopener">Baixar o .exe</a>
+    </div>
+  </div>
+
+  <!-- ============ DEMO ============ -->
+  <section class="block" id="demo" aria-label="Demonstração interativa">
+    <h2>Demonstração viva</h2>
+    <p class="sub">
+      Troque tema, fonte e animação abaixo — no app, as teclas
+      <code>Shift+T</code>, <code>Shift+F</code> e <code>Shift+A</code> fazem o mesmo.
+      Interpretação web do app real: hora da sua máquina em dígitos grandes,
+      data em português, fusos extras como o <code>world</code> e três painéis de exemplo.
+    </p>
+
+    <div class="term">
+      <div class="term-bar" aria-hidden="true">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span>my-dev-clock — clock</span>
+        <span class="hint" id="note">Shift+T tema · Shift+F fonte · Shift+A animação (botões aqui; teclas no app)</span>
+      </div>
+      <div class="term-screen" id="termscreen">
+        <canvas id="bg" aria-hidden="true"></canvas>
+        <div class="clock-layer">
+          <div id="bigclock" role="timer" aria-label="Hora atual">--:--:--</div>
+          <div class="dateline" id="dateline">carregando data…</div>
+          <div class="worldline" id="worldline"></div>
+        </div>
+        <div class="widget-strip" aria-label="Painéis de exemplo">
+          <div class="mini"><h3>CPU</h3><div class="bar" id="cpubar">███░░░░░░░</div><div id="cpurate">21%</div><div>8 núcleos</div></div>
+          <div class="mini"><h3>Git</h3><div>main * ↑2 ↓1 stash 3</div><div>4 arquivos pendentes</div></div>
+          <div class="mini"><h3>Clima</h3><div>22.4°C · parcialmente nublado</div><div>sensação 21.8° · umidade 78%</div></div>
+        </div>
+      </div>
+      <div class="deck">
+        <fieldset>
+          <legend>Tema (Shift+T)</legend>
+          <div class="opts" id="themes" role="group" aria-label="Tema">
+            <button class="chip" data-v="default">default</button>
+            <button class="chip" data-v="matrix" aria-pressed="true">matrix</button>
+            <button class="chip" data-v="neon">neon</button>
+            <button class="chip" data-v="system">system</button>
+            <button class="chip" data-v="fire">fire</button>
+            <button class="chip" data-v="ice">ice</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Fonte (Shift+F)</legend>
+          <div class="opts" id="fonts" role="group" aria-label="Estilo de dígitos">
+            <button class="chip" data-v="bricks" aria-pressed="true">bricks</button>
+            <button class="chip" data-v="slim">slim</button>
+            <button class="chip" data-v="slant">slant</button>
+            <button class="chip" data-v="flip">flip</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Animação (Shift+A)</legend>
+          <div class="opts" id="anims" role="group" aria-label="Animação de fundo">
+            <button class="chip" data-v="none">none</button>
+            <button class="chip" data-v="matrix" aria-pressed="true">matrix</button>
+            <button class="chip" data-v="plasma">plasma</button>
+            <button class="chip" data-v="waves">waves</button>
+            <button class="chip" data-v="stars">stars</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Tamanho — arraste (tecla s no app, 1–12)</legend>
+          <input type="range" id="size" min="0" max="12" value="0" aria-label="Tamanho dos dígitos, 0 é automático">
+          <div class="val">tamanho: <span id="sizeval">auto</span> · 0 = auto</div>
+        </fieldset>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODOS ============ -->
+  <section class="block" id="modos">
+    <h2>Quatro modos</h2>
+    <p class="sub">O modo inicial vem de <code>mode</code> na configuração, ou do subcomando na linha de comando. As teclas <code>c</code>, <code>w</code> e <code>t</code> alternam entre relógio, cronômetro e timer.</p>
+    <div data-tabs>
+      <div class="tabs" role="tablist" aria-label="Modos">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="p-clock" id="t-clock">clock</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-stop" id="t-stop">stopwatch</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-timer" id="t-timer">timer</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-down" id="t-down">countdown</button>
+      </div>
+      <div class="tabpanel active" id="p-clock" role="tabpanel" aria-labelledby="t-clock">
+<pre><code><span class="cm"># hora atual, data em português e fuso opcional. É o padrão.</span>
+my-dev-clock clock --timezone America/Sao_Paulo</code></pre>
+      </div>
+      <div class="tabpanel" id="p-timer" role="tabpanel" aria-labelledby="t-timer">
+        <div class="card">
+          <p><strong>Timer.</strong> Aceita várias durações e corre em sequência (<code>--duration</code>, depois a chave <code>durations</code>, por fim 5 minutos). Durante a corrida: <code>n</code> pula o intervalo, <code>+</code> e <code>-</code> somam ou tiram um minuto, <code>r</code> volta ao começo, <code>espaço</code> pausa. Quando acaba, a tela pisca e o comando de <code>execute</code> roda, se houver.</p>
+<pre><code>my-dev-clock timer -d 25m 5m -T Foco Pausa</code></pre>
+          <div class="demo-timer">
+            <span class="t" id="demo-t">25:00</span><span class="lbl" id="demo-lbl">Foco</span><span class="lbl">· teste aqui</span>
+          </div>
+          <div class="row-btns">
+            <button class="sbtn" id="demo-start">iniciar</button>
+            <button class="sbtn" id="demo-pause">pausar</button>
+            <button class="sbtn" id="demo-reset">reiniciar</button>
+          </div>
+        </div>
+      </div>
+      <div class="tabpanel" id="p-stop" role="tabpanel" aria-labelledby="t-stop">
+        <div class="card">
+          <p><strong>Cronômetro.</strong> <code>l</code> marca uma volta, e o rodapé mostra a volta em andamento. Ao sair, cada volta aparece na tela — e o arquivo de <code>laps_csv</code> recebe tudo em CSV:</p>
+<pre><code>my-dev-clock stopwatch --no-millis
+
+<span class="cm"># voltas.csv</span>
+volta,volta_s,total_s
+1,12.480,12.480
+2,11.901,24.381</code></pre>
+        </div>
+      </div>
+      <div class="tabpanel" id="p-down" role="tabpanel" aria-labelledby="t-down">
+        <div class="card">
+          <p><strong>Contagem regressiva.</strong> <code>time</code> aceita <code>2026-01-01</code>, <code>20:00</code>, <code>2026-12-25 20:00:00</code> ou horário RFC3339. <code>continue_on_zero</code> segue contando depois do alvo e <code>reverse</code> conta para cima.</p>
+<pre><code>my-dev-clock countdown -t 2026-01-01 -T 'Ano novo'</code></pre>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Aviso quando o tempo acaba</h3>
+      <p><code>bell = true</code> em <code>[timer]</code> ou <code>[countdown]</code> toca a campainha do terminal, além do flash na tela. Para algo mais forte, <code>execute</code> roda um comando — duas receitas verificadas:</p>
+<pre><code><span class="cm"># um bipe curto, sem depender de arquivo nenhum</span>
+execute = ["powershell", "-NoProfile", "-Command", "[console]::beep(880,300)"]
+
+<span class="cm"># um som de verdade, do próprio Windows</span>
+<span class="cm"># execute = ["powershell", "-NoProfile", "-Command", "(New-Object Media.SoundPlayer 'C:\Windows\Media\Alarm01.wav').PlaySync()"]</span></code></pre>
+    </div>
+  </section>
+
+  <!-- ============ TECLAS ============ -->
+  <section class="block" id="teclas">
+    <h2>Teclas</h2>
+    <p class="sub"><code>?</code> mostra a lista completa dentro do próprio app (<code>Esc</code> fecha). Todo atalho de aparência confirma no rodapé o que mudou.</p>
+    <div class="scrollx">
+    <table class="keys">
+      <thead><tr><th>Tecla</th><th>O que faz</th><th>Onde</th></tr></thead>
+      <tbody>
+        <tr><td>q</td><td>Sai</td><td>sempre</td></tr>
+        <tr><td>espaço</td><td>Pausa e retoma</td><td>timer e cronômetro</td></tr>
+        <tr><td>c / w / t</td><td>Vai para relógio / cronômetro / timer</td><td>sempre</td></tr>
+        <tr><td>Shift+T</td><td>Próximo tema</td><td>sempre</td></tr>
+        <tr><td>Shift+F</td><td>Próximo estilo de dígitos</td><td>sempre</td></tr>
+        <tr><td>Shift+A</td><td>Próxima animação</td><td>sempre</td></tr>
+        <tr><td>Shift+L</td><td>Relógio na tela toda, sim/não</td><td>modo relógio</td></tr>
+        <tr><td>z</td><td>Esconde ou mostra todos os widgets</td><td>modo relógio</td></tr>
+        <tr><td>s</td><td>Digita o tamanho dos dígitos (1–12, <code>Enter</code> confirma)</td><td>sempre</td></tr>
+        <tr><td>l / n / + − / r</td><td>Volta · próximo intervalo · ±1 min · reinicia</td><td>cronômetro / timer</td></tr>
+        <tr><td>Home / End · PageUp / PageDown · roda do mouse</td><td>Rola o widget em foco ou sob o cursor</td><td>modo relógio</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ============ APARÊNCIA ============ -->
+  <section class="block" id="aparencia">
+    <h2>Aparência de verdade</h2>
+    <p class="sub">Quatro estilos de dígitos, cinco animações de fundo desenhadas atrás dos dígitos com o estilo escurecido, seis temas — mais a paleta própria <code>custom</code>. Salvar o <code>config.toml</code> recarrega tudo na hora, sem reiniciar.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>bricks · slim · slant · flip</h3>
+        <p>Blocos maciços, traço fino e leve, blocos inclinados como itálica, e dígitos em cartões coloridos com linha de dobradiça. A face <code>flip</code> liga sozinha a virada dos dígitos — metade de baixo cai primeiro, como painel de aeroporto — e <code>flip = true</code> liga em qualquer face.</p>
+<pre><code><span class="cm"># quadro real do renderizador, estilo bricks</span>
+<span class="hl">    ████████      ████████████                ████████████  ████████████
+    ████████      ████████████                ████████████  ████████████
+        ████              ████      ████      ████    ████          ████
+        ████      ████████████                ████    ████  ████████████
+    ████████████  ████████████                ████████████  ████████████</span></code></pre>
+      </div>
+      <div class="card">
+        <h3>matrix · plasma · waves · stars</h3>
+        <p>Colunas caindo com cabeça clara, campos senoidais somados, anéis concêntricos do centro, estrelas piscando no lugar. O tempo avança em passos inteiros de quadro (<code>animation_fps</code>, 12 por padrão): movimento picotado de terminal, e o mesmo instante sempre desenha o mesmo quadro — animação testável, não só olhável.</p>
+<pre><code>[clock]
+font = "flip"
+animation = "matrix"
+animation_fps = 10
+fill = true   <span class="cm"># relógio na área toda (Shift+L alterna)</span></code></pre>
+      </div>
+    </div>
+    <div class="scrollx" style="margin-top:14px">
+    <table class="keys">
+      <thead><tr><th>Tema</th><th>Cara</th></tr></thead>
+      <tbody>
+        <tr><td>default</td><td>Usa a cor de <code>--color</code>, ou verde.</td></tr>
+        <tr><td>matrix</td><td>Verde fósforo.</td></tr>
+        <tr><td>neon</td><td>Magenta e ciano, alto contraste.</td></tr>
+        <tr><td>system</td><td>As cores do próprio terminal, sem impor paleta.</td></tr>
+        <tr><td>fire</td><td>Laranja e vermelho.</td></tr>
+        <tr><td>ice</td><td>Azuis claros.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ============ WIDGETS ============ -->
+  <section class="block" id="widgets">
+    <h2>Onze painéis, zero script</h2>
+    <p class="sub">Declarados em <code>[[clock.widgets]]</code>, aparecem embaixo do relógio em 2, 4 ou 6 colunas conforme a largura (teto em <code>max_columns</code>). Todo widget aceita <code>title</code>, <code>refresh_secs</code> (padrão 900) e <code>timeout_secs</code> (padrão 30). Dividir a janela não esconde nada: menos largura vira menos colunas e mais linhas, e o que não couber ganha a faixa <code>+N painel(ns) sem espaço</code> em vez de sumir em silêncio. Só widgets visíveis rodam.</p>
+    <div class="grid3">
+      <div class="card"><h3>git</h3><p>Branch, sujeira, à frente e atrás do remoto, stash — tudo numa chamada só. Olha o repositório atual, ou o de <code>path</code>.</p><p class="need">Estar num repositório, ou <code>path</code>.</p></div>
+      <div class="card"><h3>cpu · mem · disk · net</h3><p>Uso do processador com barra, RAM usada e total, espaço em disco com barra, tráfego desde o boot mais a taxa desde a leitura anterior. Nativos, sem configuração — disco aceita <code>mount</code>, rede aceita <code>interface</code>.</p><p class="need">Não precisam de nada.</p></div>
+      <div class="card"><h3>git</h3><p>Branch, sujeira, à frente e atrás do remoto, stash — tudo numa chamada só. Olha o repositório atual, ou o de <code>path</code>.</p><p class="need">Estar num repositório, ou <code>path</code>.</p></div>
+      <div class="card"><h3>commits</h3><p>Seus últimos commits em todos os projetos varridos: <code>projeto · quando · assunto</code>. <code>roots</code> varre pastas até <code>depth</code>; <code>paths</code> lista repositórios avulsos.</p><p class="need"><code>roots</code> ou <code>paths</code>.</p></div>
+      <div class="card"><h3>http</h3><p>Status e um valor tirado do JSON de um endereço — para vigiar um dev server. Caminho com pontos (<code>.items.0.name</code>), <code>expect</code> opcional diz se o valor bate. Um <code>4xx/5xx</code> é informação, não erro do widget.</p><p class="need"><code>url</code>.</p></div>
+      <div class="card"><h3>weather</h3><p>Agora e os próximos dias: temperatura, sensação, umidade, vento. Usa a Open-Meteo, que não pede chave de API.</p><p class="need"><code>city</code> ou <code>lat</code>/<code>lon</code>.</p></div>
+      <div class="card"><h3>gh</h3><p>O que está pendente para você: revisões, seus PRs (com <code>rascunho</code>, <code>aprovado</code>, <code>mudanças pedidas</code>), issues. Tudo numa única chamada GraphQL — ~1,2 s contra 4,4 s das três REST anteriores.</p><p class="need"><code>gh auth login</code>.</p></div>
+      <div class="card"><h3>actions</h3><p>Últimas execuções de CI marcadas com <code>✓ ✗ … ×</code>. Usa o repositório atual, ou o de <code>repo</code>.</p><p class="need"><code>gh auth login</code>.</p></div>
+      <div class="card"><h3>command</h3><p>Qualquer comando que imprima algo e termine. String só passa pelo shell (<code>cmd /C</code>); lista executa direto, sem shell. Recebe o tema atual em <code>MY_DEV_CLOCK_THEME</code>. Estoura o tempo? Morre junto com tudo que iniciou, via Job Object — fechar o app não deixa processo pendurado.</p><p class="need"><code>command</code>.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ RECEITAS ============ -->
+  <section class="block" id="receitas">
+    <h2>Receitas prontas</h2>
+    <p class="sub">Copie, cole no <code>config.toml</code>, ajuste os caminhos. Crie a base com <code>my-dev-clock --init</code>.</p>
+    <div data-tabs>
+      <div class="tabs" role="tablist" aria-label="Receitas">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="r-pom" id="rt-pom">Pomodoro</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="r-dev" id="rt-dev">Painel de dev</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="r-srv" id="rt-srv">Monitor de servidor</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="r-wall" id="rt-wall">Relógio de parede</button>
+      </div>
+      <div class="tabpanel active" id="r-pom" role="tabpanel" aria-labelledby="rt-pom">
+<pre><code>[default]
+mode = "timer"
+color = "lightred"
+
+[timer]
+durations = ["25m", "5m"]
+titles = ["Foco", "Pausa"]
+bell = true
+repeat = true
+
+[[clock.widgets]]
+kind = "gh"
+title = "Pendências"</code></pre>
+      </div>
+      <div class="tabpanel" id="r-dev" role="tabpanel" aria-labelledby="rt-dev">
+<pre><code>[clock]
+font = "flip"
+max_columns = 5
+
+[[clock.widgets]]
+kind = "git"          <span class="cm"># Repo · refresh_secs = 15</span>
+[[clock.widgets]]
+kind = "commits"      <span class="cm"># Meus commits · roots = ["~/dev"]</span>
+[[clock.widgets]]
+kind = "gh"           <span class="cm"># Pendências · refresh_secs = 600</span>
+[[clock.widgets]]
+kind = "actions"      <span class="cm"># CI · refresh_secs = 120</span>
+[[clock.widgets]]
+kind = "cpu"          <span class="cm"># CPU · refresh_secs = 3</span></code></pre>
+      </div>
+      <div class="tabpanel" id="r-srv" role="tabpanel" aria-labelledby="rt-srv">
+<pre><code>[clock]
+max_columns = 4
+
+[[clock.widgets]]
+kind = "http"   <span class="cm"># API · url = "http://localhost:3000/health" · path = ".status" · expect = "ok"</span>
+[[clock.widgets]]
+kind = "cpu"    <span class="cm"># refresh_secs = 3</span>
+[[clock.widgets]]
+kind = "mem"    <span class="cm"># refresh_secs = 5</span>
+[[clock.widgets]]
+kind = "disk"   <span class="cm"># refresh_secs = 60</span>
+[[clock.widgets]]
+kind = "net"    <span class="cm"># refresh_secs = 10</span></code></pre>
+      </div>
+      <div class="tabpanel" id="r-wall" role="tabpanel" aria-labelledby="rt-wall">
+<pre><code>[default]
+mode = "clock"
+size = 6
+show_seconds = false
+
+[clock]
+fill = true
+animation = "matrix"
+animation_fps = 10
+<span class="cm"># combine com --theme matrix, ou themes = ["matrix"]</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONFIG / CLI ============ -->
+  <section class="block" id="config">
+    <h2>Configuração e linha de comando</h2>
+    <p class="sub">O app lê o primeiro arquivo que existir: <code>--config</code>, <code>%XDG_CONFIG_HOME%\my-dev-clock\config.toml</code>, <code>%APPDATA%\my-dev-clock\config.toml</code>, <code>%USERPROFILE%\.config\my-dev-clock\config.toml</code>. Precedência de exibição: flag, seção do modo, <code>[default]</code>, padrão embutido.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Diagnóstico: --check</h3>
+        <p>Mostra de onde veio a configuração, a aparência resolvida e roda cada widget uma vez. Primeiro lugar para olhar quando um painel não aparece.</p>
+<pre><code>my-dev-clock --check
+
+<span class="cm">configuração: …\AppData\Roaming\my-dev-clock\config.toml
+tema inicial: default
+fonte: bricks · animação: none (12 fps)</span></code></pre>
+      </div>
+      <div class="card">
+        <h3>Scripts: --print</h3>
+        <p>Imprime uma linha e sai, sem abrir a tela alternativa — para tmux, prompt ou barra de status. Marcador desconhecido fica como está, para o erro aparecer.</p>
+<pre><code>my-dev-clock --print "{time} · {git} · cpu {cpu} · ram {mem} · {host}"
+
+<span class="cm">14:09:15 · main * · cpu 15% · ram 68% · DESKTOP-8KQ2M4</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMO FUNCIONA ============ -->
+  <section class="block" id="dentro">
+    <h2>Por dentro</h2>
+    <div class="grid2">
+      <div class="card"><h3>Nunca trava o desenho</h3><p>Cada widget roda numa thread própria e devolve o texto por um canal; o laço de desenho nunca espera por um comando.</p></div>
+      <div class="card"><h3>Geometria corrigida</h3><p>Animações corrigem a proporção da célula — duas vezes mais alta que larga — senão todo círculo sai esticado na vertical.</p></div>
+      <div class="card"><h3>Determinismo</h3><p>Tempo injetado e aleatoriedade de semente fixa: o mesmo instante sempre desenha o mesmo quadro. Testes de renderização conferem fontes e animações sem ninguém olhar.</p></div>
+      <div class="card"><h3>Processos que morrem juntos</h3><p>Widgets de comando rodam em Job Object com <code>kill-on-close</code>: o processo e tudo que ele iniciou morrem junto.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALAR ============ -->
+  <section class="block" id="instalar">
+    <h2>Instalação</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Binário pronto</h3>
+        <p>Baixe o <code>my-dev-clock.exe</code> na <a href="https://github.com/HyperTechDevelopment/My-dev-clock/releases/latest" target="_blank" rel="noopener">página de releases</a> e rode. Na primeira execução o Windows mostra “O Windows protegeu o seu PC” (binário sem assinatura): <strong>Mais informações → Executar assim mesmo</strong>; o aviso não volta. Para chamar de qualquer pasta, ponha o <code>.exe</code> numa pasta do <code>PATH</code>.</p>
+<pre><code>.\my-dev-clock.exe
+my-dev-clock --init   <span class="cm"># grava o config.toml comentado</span></code></pre>
+      </div>
+      <div class="card">
+        <h3>Compilar do código</h3>
+        <p>Precisa de Rust estável e do toolset C++ do Visual Studio (o linker do Windows). Se o <code>cargo</code> reclamar de <code>link.exe</code>, use o <code>build.cmd</code> — ele repassa qualquer comando do cargo.</p>
+<pre><code>cargo build --release
+.\target\release\my-dev-clock.exe
+
+.\build.cmd test
+.\build.cmd clippy --all-targets -- -D warnings</code></pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><strong>my-dev-clock</strong> · licença MIT · Rust nativo no Windows · <a href="https://github.com/HyperTechDevelopment/My-dev-clock" target="_blank" rel="noopener">GitHub</a></span>
+    <span class="spacer"></span>
+    <span>Demonstração web: os painéis acima são ilustrativos; o app real está no repositório do projeto.</span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+<script src="depth.js"></script>
+</body>
+</html>
